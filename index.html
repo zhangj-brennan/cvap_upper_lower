@@ -72,7 +72,7 @@
     }
 
     .tab-btn {
-      width: 50%;
+      flex: 1;
       border: 1px solid #000;
       background: #fff;
       color: #000;
@@ -260,10 +260,11 @@
     <aside class="sidebar">
       <h1>Citizen Voting Age Population</h1>
 
-      <div class="tabs">
-        <button class="tab-btn active" data-key="lower">Lower House</button>
-        <button class="tab-btn" data-key="upper">Upper House</button>
-      </div>
+  <div class="tabs">
+  <button class="tab-btn active" data-key="lower">Lower House</button>
+  <button class="tab-btn" data-key="upper">Upper House</button>
+  <button class="tab-btn" data-key="congress">119th Congress</button>
+</div>
 
       <div id="source">
         <b>Data source:</b> Census Bureau, American Community Survey, 5-year estimates of citizen voting age population, 2020-24
@@ -291,6 +292,11 @@
         label: "Upper House",
         tableTitle: "Upper House districts",
         file: "upper_percent.csv"
+      },
+      congress: {
+        label: "119th Congress",
+        tableTitle: "119th Congress",
+        file: "congress_percent.csv"
       }
     };
 
@@ -475,24 +481,38 @@
         .call(d3.axisLeft(y).ticks(3));
 
       const brush = d3.brushX()
-        .handleSize(6)
-        .extent([[0, 0], [width, height]])
-        .on("brush", event => {
-          if (isRestoringBrushes) return;
+  .handleSize(12)
+  .extent([[0, 0], [width, height]])
+  .on("brush", event => {
+    if (isRestoringBrushes) return;
+    if (!event.selection) return;
 
-          setFilterFromBrush(col, event.selection, x);
+    setFilterFromBrush(col, event.selection, x);
 
-          updateHistogramHighlights();
-          updateFilterLabels();
-          updateCount(getFilteredData());
-        })
-        .on("end", event => {
-          if (isRestoringBrushes) return;
+    updateHistogramHighlights();
+    updateFilterLabels();
+    updateCount(getFilteredData());
+  })
+  .on("end", event => {
+    if (isRestoringBrushes) return;
 
-          setFilterFromBrush(col, event.selection, x);
+    if (!event.selection) {
+      activeFilters[col] = null;
 
-          update();
-        });
+      isRestoringBrushes = true;
+      histograms[col].brushG.call(
+        histograms[col].brush.move,
+        histograms[col].x.range()
+      );
+      isRestoringBrushes = false;
+
+      update();
+      return;
+    }
+
+    setFilterFromBrush(col, event.selection, x);
+    update();
+  });
 
       const brushG = g.append("g")
         .attr("class", "brush")

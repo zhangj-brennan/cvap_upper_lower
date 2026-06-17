@@ -1,7 +1,7 @@
 import pandas as pd
 
-input_file = "CVAP state upper house chambers 5 year 2024.csv"
-output_file = "upper_percent.csv"
+input_file = "CVAP 119th Congress 5 year 2024.csv"
+output_file = "congress_percent.csv"
 
 wanted_groups = [
     "American Indian or Alaska Native Alone",
