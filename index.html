@@ -523,7 +523,7 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
 
       const bins = d3.bin()
         .domain(x.domain())
-        .thresholds(18)(values);
+        .thresholds(40)(values);
 
       const y = d3.scaleLinear()
         .domain([0, d3.max(bins, d => d.length) || 0])
@@ -733,18 +733,26 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
       let rows = [...filtered];
 
       rows.sort((a, b) => {
-        const stateCompare = d3.ascending(
-          getStateFromGeoname(a.geoname),
-          getStateFromGeoname(b.geoname)
-        );
 
-        if (stateCompare !== 0) return stateCompare;
+  const stateCompare = d3.ascending(
+    getStateFromGeoname(a.geoname),
+    getStateFromGeoname(b.geoname)
+  );
 
-        return d3.ascending(
-          formatDistrictName(a.geoname),
-          formatDistrictName(b.geoname)
-        );
-      });
+  if (stateCompare !== 0) return stateCompare;
+
+  const aInfo = getDistrictSortInfo(a.geoname);
+  const bInfo = getDistrictSortInfo(b.geoname);
+
+  const nameCompare = d3.ascending(
+    aInfo.name,
+    bInfo.name
+  );
+
+  if (nameCompare !== 0) return nameCompare;
+
+  return aInfo.number - bInfo.number;
+});
 
       if (sortColumn) {
         rows.sort((a, b) => {
@@ -832,7 +840,40 @@ headerBottom.selectAll("th")
       const parts = String(geoname).split(",");
       return parts.length > 1 ? parts[parts.length - 1].trim() : "Unknown";
     }
+function getDistrictSortInfo(geoname) {
+  const districtName = String(geoname)
+    .split(",")[0]
+    .trim();
 
+  // Case 1: 1st Norfolk District
+  let match = districtName.match(
+    /^(\d+)(?:st|nd|rd|th)\s+(.+?)\s+District/i
+  );
+
+  if (match) {
+    return {
+      name: match[2].trim(),
+      number: +match[1]
+    };
+  }
+
+  // Case 2: State House District 10
+  match = districtName.match(
+    /^(.+?)\s+District\s+(\d+)/i
+  );
+
+  if (match) {
+    return {
+      name: match[1].trim(),
+      number: +match[2]
+    };
+  }
+
+  return {
+    name: districtName,
+    number: 0
+  };
+}
     function formatDistrictName(geoname) {
       if (!geoname) return "";
 
