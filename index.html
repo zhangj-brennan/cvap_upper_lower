@@ -92,6 +92,11 @@
       line-height: 1.35;
       margin: 10px 0 14px;
     }
+    #congressNote{
+            font-size: 12px;
+      line-height: 1.35;
+      margin: 10px 0 14px;
+    }
 
     #resetFilters {
       border: 1px solid #000;
@@ -252,6 +257,9 @@
     .state-row:hover {
       background: inherit;
     }
+    .bold{
+      font-family:"BentonMedium";
+    }
   </style>
 </head>
 
@@ -265,9 +273,11 @@
   <button class="tab-btn" data-key="upper">Upper House</button>
   <button class="tab-btn" data-key="congress">119th Congress</button>
 </div>
-
+<div id="congressNote" style="display:none;">
+  Districts Used in the 2024 Elections <br><span class="bold">Note:</span> AL, CA, FL, LA, MO, NC, TX, and UT will use different maps for the 2026 midterms."
+</div>
       <div id="source">
-        <b>Data source:</b> Census Bureau, American Community Survey, 5-year estimates of citizen voting age population, 2020-24
+        <span class="bold">Data source:</span> Census Bureau, American Community Survey, 5-year estimates of citizen voting age population, 2020-24
       </div>
 
       <button id="resetFilters">Reset filters</button>
@@ -340,18 +350,26 @@
     });
 
     loadDataset(currentDatasetKey);
+    d3.select("#congressNote")
+  .style(
+    "display",
+    currentDatasetKey === "congress" ? "block" : "none"
+  );
 
-    d3.selectAll(".tab-btn").on("click", function () {
-      const key = d3.select(this).attr("data-key");
-      if (key === currentDatasetKey) return;
+d3.selectAll(".tab-btn").on("click", function () {
+  const key = d3.select(this).attr("data-key");
+  if (key === currentDatasetKey) return;
 
-      currentDatasetKey = key;
+  currentDatasetKey = key;
 
-      d3.selectAll(".tab-btn").classed("active", false);
-      d3.select(this).classed("active", true);
+  d3.selectAll(".tab-btn").classed("active", false);
+  d3.select(this).classed("active", true);
 
-      loadDataset(currentDatasetKey);
-    });
+  d3.select("#congressNote")
+    .style("display", key === "congress" ? "block" : "none");
+
+  loadDataset(currentDatasetKey);
+});
 
     d3.select("#resetFilters").on("click", () => {
       filterColumns.forEach(col => {
