@@ -6,43 +6,42 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
 
   <style>
+    @font-face {
+      font-family: "Benton";
+      src: url("Benton Sans/Benton Sans Book.otf");
+    }
+
+    @font-face {
+      font-family: "BentonStrong";
+      src: url("Benton Sans/Benton Sans Bold.otf");
+    }
+
+    @font-face {
+      font-family: "BentonMedium";
+      src: url("Benton Sans/Benton Sans Medium.otf");
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      font-family: Helvetica, Arial, sans-serif;
-      color: #111;
+      font-family: "Benton", Arial, sans-serif;
+      color: #000;
       background: #fff;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      padding: 16px 20px 0;
-    }
-
-    .tab-btn {
-      border: 1px solid #111;
-      background: white;
-      padding: 8px 14px;
-      cursor: pointer;
-      font-family: Helvetica, Arial, sans-serif;
-    }
-
-    .tab-btn.active {
-      background: #111;
-      color: white;
     }
 
     .page {
       display: grid;
       grid-template-columns: 360px 1fr;
-      min-height: calc(100vh - 60px);
+      min-height: 100vh;
     }
 
     .sidebar {
       border-right: 1px solid #ddd;
       padding: 20px;
       height: 100vh;
-      box-sizing: border-box;
       position: sticky;
       top: 0;
       overflow-y: auto;
@@ -54,8 +53,60 @@
     }
 
     h1 {
+      font-family: "BentonStrong", Arial, sans-serif;
       font-size: 28px;
       margin: 0 0 10px;
+      line-height: 1.1;
+    }
+
+    h2 {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 22px;
+      margin: 0 0 10px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .tab-btn {
+      width: 50%;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-family: "BentonMedium", Arial, sans-serif;
+      font-size: 12px;
+    }
+
+    .tab-btn.active {
+      background: #000;
+      color: #fff;
+    }
+
+    #source {
+      font-size: 12px;
+      line-height: 1.35;
+      margin: 10px 0 14px;
+    }
+
+    #resetFilters {
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      padding: 8px 12px;
+      cursor: pointer;
+      margin-bottom: 16px;
+      font-family: "BentonMedium", Arial, sans-serif;
+      font-size: 12px;
+    }
+
+    #resetFilters:hover {
+      background: #000;
+      color: #fff;
     }
 
     .count {
@@ -65,28 +116,29 @@
     }
 
     .histogram-block {
-      margin-bottom: 28px;
+      margin-bottom: 14px;
     }
 
     .histogram-title {
+      font-family: "BentonStrong", Arial, sans-serif;
       font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     .filter-range {
       font-size: 12px;
       color: #666;
-      margin-bottom: 6px;
-      min-height: 16px;
+      margin-bottom: 2px;
+      min-height: 14px;
     }
 
     .histogram svg {
       overflow: visible;
+      display: block;
     }
 
     .bar {
-      fill: #3995b2;
+      fill: #000;
     }
 
     .bar.inactive {
@@ -94,13 +146,31 @@
     }
 
     .axis text {
-      font-size: 11px;
+      font-family: "Benton", Arial, sans-serif;
+      font-size: 10px;
+      fill: #000;
+    }
+
+    .axis path,
+    .axis line {
+      stroke: #999;
+      shape-rendering: crispEdges;
     }
 
     .brush .selection {
-      fill: #111;
+      fill: #FFCF01;
       fill-opacity: 0.18;
-      stroke: #111;
+      stroke-width: 1;
+    }
+
+    .brush .handle {
+      fill: #FFCF01;
+      stroke: #FFCF01;
+      cursor: ew-resize;
+    }
+
+    .brush .overlay {
+      cursor: crosshair;
     }
 
     table {
@@ -115,19 +185,28 @@
       top: 0;
       background: #fff;
       border-bottom: 2px solid #111;
-      padding: 4px;
-      height: 180px;
+      padding: 0;
+      height: 120px;
       vertical-align: bottom;
       cursor: pointer;
       z-index: 2;
+      overflow: visible;
+      text-align: left;
+      border-bottom:1px solid black;
+
     }
 
     th span {
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-      white-space: nowrap;
       display: inline-block;
+      white-space: wrap;
+      transform: rotate(-90deg);
+      transform-origin: left bottom;
+      position: relative;
+      left: 30px;
+      bottom: 0px;
+      width: 100px;
       line-height: 1;
+      font-family: "BentonMedium",  sans-serif;
     }
 
     thead,
@@ -157,56 +236,45 @@
       background: #f5f5f5;
     }
 
-    button {
-      font-family: Helvetica, Arial, sans-serif;
-    }
-
-    #resetFilters {
-      border: 1px solid #111;
-      background: white;
-      padding: 8px 12px;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-
-    #resetFilters:hover {
-      background: #111;
-      color: white;
-    }
-
     td.percent-cell {
-      background: gold;
+      background:#EBEAE9;
     }
-    .state-row td {
-  background: #111;
-  color: white;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 8px;
-  border-bottom: none;
-}
 
-.state-row:hover {
-  background: inherit;
-}
+    .state-row td {
+      background: #000;
+      color: #fff;
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 14px;
+      padding: 8px;
+      border-bottom: none;
+    }
+
+    .state-row:hover {
+      background: inherit;
+    }
   </style>
 </head>
 
 <body>
-  <div class="tabs">
-    <button class="tab-btn active" data-key="lower">Lower House</button>
-    <button class="tab-btn" data-key="upper">Upper House</button>
-  </div>
-
   <div class="page">
     <aside class="sidebar">
-      <h1>Filters</h1>
+      <h1>Citizen Voting Age Population</h1>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-key="lower">Lower House</button>
+        <button class="tab-btn" data-key="upper">Upper House</button>
+      </div>
+
+      <div id="source">
+        <b>Data source:</b> Census Bureau, American Community Survey, 5-year estimates of citizen voting age population, 2020-24
+      </div>
+
       <button id="resetFilters">Reset filters</button>
       <div id="filters"></div>
     </aside>
 
     <main class="main">
-      <h1 id="tableTitle">Lower House districts</h1>
+      <h2 id="tableTitle">Lower House districts</h2>
       <div class="count" id="count"></div>
       <div id="table"></div>
     </main>
@@ -259,6 +327,7 @@
     let currentDatasetKey = "lower";
     let sortColumn = null;
     let sortAscending = true;
+    let isRestoringBrushes = false;
 
     filterColumns.forEach(col => {
       activeFilters[col] = null;
@@ -284,7 +353,7 @@
       });
 
       Object.values(histograms).forEach(chart => {
-        chart.brushG.call(chart.brush.move, null);
+        chart.brushG.call(chart.brush.move, chart.x.range());
       });
 
       update();
@@ -342,7 +411,7 @@
         block.append("div")
           .attr("class", "filter-range")
           .attr("id", `label-${sanitizeId(col)}`)
-          .text("All values");
+          .text("All values selected");
 
         const chart = block.append("div")
           .attr("class", "histogram");
@@ -352,9 +421,9 @@
     }
 
     function drawHistogram(container, col) {
-      const margin = { top: 8, right: 10, bottom: 26, left: 32 };
+      const margin = { top: 0, right: 0, bottom: 16, left: 25 };
       const width = 300 - margin.left - margin.right;
-      const height = 110 - margin.top - margin.bottom;
+      const height = 60 - margin.top - margin.bottom;
 
       const values = data
         .map(d => +d[col])
@@ -406,8 +475,11 @@
         .call(d3.axisLeft(y).ticks(3));
 
       const brush = d3.brushX()
+        .handleSize(6)
         .extent([[0, 0], [width, height]])
         .on("brush", event => {
+          if (isRestoringBrushes) return;
+
           setFilterFromBrush(col, event.selection, x);
 
           updateHistogramHighlights();
@@ -415,7 +487,10 @@
           updateCount(getFilteredData());
         })
         .on("end", event => {
+          if (isRestoringBrushes) return;
+
           setFilterFromBrush(col, event.selection, x);
+
           update();
         });
 
@@ -434,21 +509,38 @@
     function setFilterFromBrush(col, selection, x) {
       if (!selection) {
         activeFilters[col] = null;
+        return;
+      }
+
+      const fullRange = x.range();
+      const isFullExtent =
+        Math.abs(selection[0] - fullRange[0]) < 0.5 &&
+        Math.abs(selection[1] - fullRange[1]) < 0.5;
+
+      if (isFullExtent) {
+        activeFilters[col] = null;
       } else {
         activeFilters[col] = selection.map(x.invert);
       }
     }
 
     function restoreBrushSelections() {
+      isRestoringBrushes = true;
+
       filterColumns.forEach(col => {
         const filter = activeFilters[col];
         const chart = histograms[col];
 
-        if (!filter || !chart) return;
+        if (!chart) return;
 
-        const selection = filter.map(chart.x);
+        const selection = filter
+          ? filter.map(chart.x)
+          : chart.x.range();
+
         chart.brushG.call(chart.brush.move, selection);
       });
+
+      isRestoringBrushes = false;
     }
 
     function update() {
@@ -469,6 +561,7 @@
 
         chart.bars.classed("inactive", d => {
           if (!filter) return false;
+
           const midpoint = (d.x0 + d.x1) / 2;
           return midpoint < filter[0] || midpoint > filter[1];
         });
@@ -481,7 +574,7 @@
         const label = d3.select(`#label-${sanitizeId(col)}`);
 
         if (!filter) {
-          label.text("All values");
+          label.text("All values selected");
           return;
         }
 
@@ -496,6 +589,20 @@
 
     function updateTable(filtered) {
       let rows = [...filtered];
+
+      rows.sort((a, b) => {
+        const stateCompare = d3.ascending(
+          getStateFromGeoname(a.geoname),
+          getStateFromGeoname(b.geoname)
+        );
+
+        if (stateCompare !== 0) return stateCompare;
+
+        return d3.ascending(
+          formatDistrictName(a.geoname),
+          formatDistrictName(b.geoname)
+        );
+      });
 
       if (sortColumn) {
         rows.sort((a, b) => {
@@ -535,42 +642,64 @@
           update();
         });
 
-     const rowsByState = d3.group(
-  rows,
-  d => getStateFromGeoname(d.geoname)
-);
+      const rowsByState = d3.group(
+        rows,
+        d => getStateFromGeoname(d.geoname)
+      );
 
-for (const [state, stateRows] of rowsByState) {
+      for (const [state, stateRows] of rowsByState) {
+        tbody.append("tr")
+          .attr("class", "state-row")
+          .append("td")
+          .attr("colspan", displayColumns.length)
+          .text(`${state} (${stateRows.length.toLocaleString()})`);
 
-  tbody.append("tr")
-    .attr("class", "state-row")
-    .append("td")
-    .attr("colspan", displayColumns.length)
-    .text(`${state} (${stateRows.length.toLocaleString()})`);
+        const stateTr = tbody.selectAll(`.row-${sanitizeId(state)}`)
+          .data(stateRows)
+          .join("tr")
+          .attr("class", `row-${sanitizeId(state)}`);
 
-  const stateTr = tbody.selectAll(`.row-${sanitizeId(state)}`)
-    .data(stateRows)
-    .join("tr")
-    .attr("class", `row-${sanitizeId(state)}`);
-
-  stateTr.selectAll("td")
-    .data(row => displayColumns.map(col => ({
-      col,
-      value: row[col]
-    })))
-    .join("td")
-    .classed("percent-cell", d => d.col.includes("%"))
-    .text(d => formatCell(d.value, d.col));
-}
+        stateTr.selectAll("td")
+          .data(row => displayColumns.map(col => ({
+            col,
+            value: row[col]
+          })))
+          .join("td")
+          .classed("percent-cell", d => d.col.includes("%"))
+          .text(d => formatCell(d.value, d.col));
+      }
     }
 
     function getStateFromGeoname(geoname) {
-  if (!geoname) return "Unknown";
-  const parts = String(geoname).split(",");
-  return parts.length > 1 ? parts[parts.length - 1].trim() : "Unknown";
-}
+      if (!geoname) return "Unknown";
+      const parts = String(geoname).split(",");
+      return parts.length > 1 ? parts[parts.length - 1].trim() : "Unknown";
+    }
+
+    function formatDistrictName(geoname) {
+      if (!geoname) return "";
+
+      const districtName = String(geoname).split(",")[0].trim();
+
+      const match = districtName.match(
+        /^(\d+(?:st|nd|rd|th))\s+(.+?)\s+District(\s*\(.*?\))?$/i
+      );
+
+      if (!match) return districtName;
+
+      const number = match[1];
+      const name = match[2];
+      const year = match[3] || "";
+
+      return `${name} District ${number}${year}`;
+    }
+
     function formatCell(value, col) {
       if (value == null) return "";
+
+      if (col === "geoname") {
+        return formatDistrictName(value);
+      }
 
       if (col.includes("%")) {
         return Number(value).toFixed(2) + "%";
