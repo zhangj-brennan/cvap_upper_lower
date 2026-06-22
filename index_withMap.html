@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CVAP Crossfilter Table</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+    @font-face {
+      font-family: "Benton";
+      src: url("Benton Sans/Benton Sans Book.otf");
+    }
+
+    @font-face {
+      font-family: "BentonStrong";
+      src: url("Benton Sans/Benton Sans Bold.otf");
+    }
+
+    @font-face {
+      font-family: "BentonMedium";
+      src: url("Benton Sans/Benton Sans Medium.otf");
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Benton", Arial, sans-serif;
+      color: #000;
+      background: #fff;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      border-right: 1px solid #ddd;
+      padding: 20px;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+    }
+
+    .main {
+      padding: 20px;
+      overflow: visible;
+    }
+
+    h1 {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 28px;
+      margin: 0 0 10px;
+      line-height: 1.1;
+    }
+
+    h2 {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 22px;
+      margin: 0 0 10px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-family: "BentonMedium", Arial, sans-serif;
+      font-size: 12px;
+    }
+
+    .tab-btn.active {
+      background: #000;
+      color: #fff;
+    }
+
+    #source,
+    #congressNote {
+      font-size: 12px;
+      line-height: 1.35;
+      margin: 10px 0 14px;
+    }
+
+    #resetFilters {
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      padding: 8px 12px;
+      cursor: pointer;
+      margin-bottom: 16px;
+      font-family: "BentonMedium", Arial, sans-serif;
+      font-size: 12px;
+    }
+
+    #resetFilters:hover {
+      background: #000;
+      color: #fff;
+    }
+
+    .count {
+      font-size: 16px;
+      margin-bottom: 20px;
+      color: #555;
+    }
+
+    .histogram-block {
+      margin-bottom: 14px;
+    }
+
+    .histogram-title {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+
+    .filter-range {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 2px;
+      min-height: 14px;
+    }
+
+    .histogram svg {
+      overflow: visible;
+      display: block;
+    }
+
+    .bar {
+      fill: #000;
+    }
+
+    .bar.inactive {
+      fill: #ddd;
+    }
+
+    .axis text {
+      font-family: "Benton", Arial, sans-serif;
+      font-size: 10px;
+      fill: #000;
+    }
+
+    .axis path,
+    .axis line {
+      stroke: #999;
+      shape-rendering: crispEdges;
+    }
+
+    .brush .handle {
+      fill: transparent;
+      stroke: transparent;
+      cursor: ew-resize;
+    }
+
+    .brush .selection {
+      fill: #FFCF01;
+      fill-opacity: 0.18;
+    }
+
+    .brush .overlay {
+      cursor: crosshair;
+    }
+
+    .visual-handle {
+      pointer-events: none;
+    }
+
+    .visual-handle rect {
+      fill: #FFCF01;
+      stroke: #000;
+      stroke-width: 1;
+      rx: 5;
+      ry: 5;
+    }
+
+    .visual-handle text {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 11px;
+      fill: #000;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed;
+      font-size: 12px;
+    }
+
+   thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+th {
+  background: #fff;
+  border-bottom: 1px solid #000;
+  padding: 4px;
+  text-align: center;
+  font-family: "BentonMedium", sans-serif;
+  vertical-align: middle;
+}
+
+.header-top th {
+  position: sticky;
+  top: 0;
+  height: 38px;
+  font-size: 11px;
+  line-height: 1.1;
+  z-index: 6;
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 #000;
+
+}
+
+.header-bottom th {
+  position: sticky;
+  top: 38px;
+  height: 24px;
+  font-size: 11px;
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 #000;
+
+  z-index: 6;
+}
+
+th span {
+  transform: none;
+  position: static;
+  width: auto;
+  white-space: normal;
+}
+
+    thead,
+    tr {
+      overflow: visible;
+    }
+
+    td {
+      border-bottom: 1px solid #ddd;
+      padding: 5px 4px;
+      white-space: normal;
+      word-break: break-word;
+      vertical-align: top;
+            border-left:1px solid black;
+
+    }
+
+    th:first-child,
+    td:first-child {
+      width: 80px;
+    }
+
+    th:not(:first-child),
+    td:not(:first-child) {
+      width: 20px;
+    }
+
+    tr:hover {
+      background: #f5f5f5;
+    }
+
+    td.percent-cell {
+      background: #EBEAE9;
+      border:none;
+    }
+    
+
+    .state-row td {
+      background: #000;
+      color: #fff;
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 14px;
+      padding: 8px;
+      border-bottom: none;
+    }
+
+    .state-row:hover {
+      background: inherit;
+    }
+
+
+
+    #cartogramTitle {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 14px;
+      margin: 8px 0 6px;
+    }
+
+    #stateCartogram svg {
+      display: block;
+      margin: 0 0 18px 0;
+    }
+
+    .cartogram-state text {
+      fill: #fff;
+    }
+
+    .cartogram-state .abbr {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-anchor: middle;
+    }
+
+    .cartogram-state .metric {
+      font-family: "Benton", Arial, sans-serif;
+      font-size: 10px;
+      text-anchor: middle;
+    }
+
+    .bold {
+      font-family: "BentonMedium";
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <aside class="sidebar">
+      <h1>Citizen Voting Age Population</h1>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-key="lower">Lower House (2024)</button>
+        <button class="tab-btn" data-key="upper">Upper House (2024)</button>
+        <button class="tab-btn" data-key="congress">119th Congress</button>
+      </div>
+
+      <div id="congressNote" style="display:none;">
+        Districts Used in the 2024 Elections
+        <br>
+        <span class="bold">Note:</span> AL, CA, FL, LA, MO, NC, TX, and UT will use different maps for the 2026 midterms.
+      </div>
+
+      <div id="source">
+        <span class="bold">Data source:</span> Census Bureau, American Community Survey, 5-year estimates of citizen voting age population, 2020-24
+      </div>
+
+      <button id="resetFilters">Reset filters</button>
+      <div id="filters"></div>
+    </aside>
+
+    <main class="main">
+      <h2 id="tableTitle">Lower House districts</h2>
+      <div class="count" id="count"></div>
+      <div id="cartogramTitle">Filtered districts by state</div>
+      <div id="stateCartogram"></div>
+      <div id="table"></div>
+    </main>
+  </div>
+
+  <script id="stateGrid" type="text/plain">
+                              ME
+               WI          VT NH
+WA ID MT ND MN IL MI    NY MA
+OR NV WY SD IA IN OH PA NJ CT RI
+CA UT CO NE MO KY WV VA MD DE
+   AZ NM KS AR TN NC SC
+         OK LA MS AL GA
+HI AK    TX             FL
+  </script>
+
+  <script>
+    const datasets = {
+      lower: {
+        label: "Lower House",
+        tableTitle: "Lower House districts",
+        file: "lower_percent.csv"
+      },
+      upper: {
+        label: "Upper House",
+        tableTitle: "Upper House districts",
+        file: "upper_percent.csv"
+      },
+      congress: {
+        label: "119th Congress",
+        tableTitle: "119th Congress",
+        file: "congress_percent.csv"
+      }
+    };
+
+
+
+    const stateNameToAbbr = {
+      Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR",
+      California: "CA", Colorado: "CO", Connecticut: "CT", Delaware: "DE",
+      Florida: "FL", Georgia: "GA", Hawaii: "HI", Idaho: "ID",
+      Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS",
+      Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD",
+      Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS",
+      Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV",
+      "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
+      "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK",
+      Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI", "South Carolina": "SC",
+      "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT",
+      Vermont: "VT", Virginia: "VA", Washington: "WA", "West Virginia": "WV",
+      Wisconsin: "WI", Wyoming: "WY",
+      "District of Columbia": "DC",
+      "Washington, D.C.": "DC"
+    };
+
+    const filterColumns = [
+      "American Indian or Alaska Native Alone %",
+      "Asian Alone %",
+      "Black or African American Alone %",
+      "Native Hawaiian or Other Pacific Islander Alone %",
+      "White Alone %",
+      "Hispanic or Latino %"
+    ];
+
+    const columnGroups = [
+  { label: "District", columns: ["geoname"] },
+  { label: "Total", columns: ["Total"] },
+  {
+    label: "American Indian or Alaska Native Alone",
+    columns: [
+      "American Indian or Alaska Native Alone",
+      "American Indian or Alaska Native Alone %"
+    ]
+  },
+  {
+    label: "Asian Alone",
+    columns: ["Asian Alone", "Asian Alone %"]
+  },
+  {
+    label: "Black or African American Alone",
+    columns: [
+      "Black or African American Alone",
+      "Black or African American Alone %"
+    ]
+  },
+  {
+    label: "Native Hawaiian or Other Pacific Islander Alone",
+    columns: [
+      "Native Hawaiian or Other Pacific Islander Alone",
+      "Native Hawaiian or Other Pacific Islander Alone %"
+    ]
+  },
+  {
+    label: "White Alone",
+    columns: ["White Alone", "White Alone %"]
+  },
+  {
+    label: "Hispanic or Latino",
+    columns: ["Hispanic or Latino", "Hispanic or Latino %"]
+  }
+];
+
+const displayColumns = columnGroups.flatMap(group => group.columns);
+
+    const activeFilters = {};
+    const histograms = {};
+
+    let data = [];
+    let currentDatasetKey = "lower";
+    let sortColumn = null;
+    let sortAscending = true;
+    let isRestoringBrushes = false;
+
+    filterColumns.forEach(col => {
+      activeFilters[col] = null;
+    });
+
+    loadDataset(currentDatasetKey);
+
+    d3.select("#congressNote")
+      .style("display", currentDatasetKey === "congress" ? "block" : "none");
+
+    d3.selectAll(".tab-btn").on("click", function () {
+      const key = d3.select(this).attr("data-key");
+      if (key === currentDatasetKey) return;
+
+      currentDatasetKey = key;
+
+      d3.selectAll(".tab-btn").classed("active", false);
+      d3.select(this).classed("active", true);
+
+      d3.select("#congressNote")
+        .style("display", key === "congress" ? "block" : "none");
+
+      loadDataset(currentDatasetKey);
+    });
+
+    d3.select("#resetFilters").on("click", () => {
+      filterColumns.forEach(col => {
+        activeFilters[col] = null;
+      });
+
+      isRestoringBrushes = true;
+
+      Object.values(histograms).forEach(chart => {
+        chart.brushG.call(chart.brush.move, chart.x.range());
+      });
+
+      isRestoringBrushes = false;
+
+      update();
+    });
+
+    function loadDataset(key) {
+      const dataset = datasets[key];
+
+      d3.select("#tableTitle").text(dataset.tableTitle);
+      d3.select("#filters").selectAll("*").remove();
+      d3.select("#table").selectAll("*").remove();
+      d3.select("#count").text("Loading...");
+
+      Object.keys(histograms).forEach(key => {
+        delete histograms[key];
+      });
+
+      d3.csv(dataset.file, d3.autoType).then(raw => {
+        data = raw;
+
+        drawFilters();
+        restoreBrushSelections();
+        update();
+      });
+    }
+
+    function sanitizeId(str) {
+      return str.replace(/[^a-zA-Z0-9]/g, "_");
+    }
+
+    function getFilteredData() {
+      return data.filter(d => {
+        return filterColumns.every(col => {
+          const filter = activeFilters[col];
+          if (!filter) return true;
+
+          const value = +d[col];
+          return value >= filter[0] && value <= filter[1];
+        });
+      });
+    }
+
+    function drawFilters() {
+      const container = d3.select("#filters");
+
+      filterColumns.forEach(col => {
+        const block = container
+          .append("div")
+          .attr("class", "histogram-block");
+
+        block.append("div")
+          .attr("class", "histogram-title")
+          .text(col);
+
+        block.append("div")
+          .attr("class", "filter-range")
+          .attr("id", `label-${sanitizeId(col)}`)
+          .text("All values selected");
+
+        const chart = block.append("div")
+          .attr("class", "histogram");
+
+        drawHistogram(chart, col);
+      });
+    }
+
+    function drawHistogram(container, col) {
+      const margin = { top: 10, right: 0, bottom: 16, left: 25 };
+      const width = 300 - margin.left - margin.right;
+      const height = 60 - margin.top - margin.bottom;
+
+      const values = data
+        .map(d => +d[col])
+        .filter(d => !isNaN(d));
+
+      const maxValue = d3.max(values) || 0;
+
+      const x = d3.scaleLinear()
+        .domain([0, maxValue])
+        .nice()
+        .range([0, width]);
+
+      const bins = d3.bin()
+        .domain(x.domain())
+        .thresholds(40)(values);
+
+      const y = d3.scaleLinear()
+        .domain([0, d3.max(bins, d => d.length) || 0])
+        .nice()
+        .range([height, 0]);
+
+      const svg = container.append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom);
+
+      const g = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      const bars = g.selectAll(".bar")
+        .data(bins)
+        .join("rect")
+        .attr("class", "bar")
+        .attr("x", d => x(d.x0) + 1)
+        .attr("y", d => y(d.length))
+        .attr("width", d => Math.max(0, x(d.x1) - x(d.x0) - 1))
+        .attr("height", d => height - y(d.length));
+
+      g.append("g")
+        .attr("class", "axis")
+        .attr("transform", `translate(0,${height})`)
+        .call(
+          d3.axisBottom(x)
+            .ticks(4)
+            .tickFormat(d => d + "%")
+        );
+
+      g.append("g")
+        .attr("class", "axis")
+        .call(d3.axisLeft(y).ticks(3));
+
+      const brush = d3.brushX()
+        .handleSize(14)
+        .extent([[0, 0], [width, height]])
+        .on("brush", event => {
+          if (isRestoringBrushes) return;
+          if (!event.selection) return;
+
+          setFilterFromBrush(col, event.selection, x);
+
+          updateHistogramHighlights();
+          updateFilterLabels();
+          updateCount(getFilteredData());
+        })
+        .on("end", event => {
+          if (isRestoringBrushes) return;
+
+          if (!event.selection) {
+            activeFilters[col] = null;
+
+            isRestoringBrushes = true;
+
+            histograms[col].brushG.call(
+              histograms[col].brush.move,
+              histograms[col].x.range()
+            );
+
+            isRestoringBrushes = false;
+
+            update();
+            return;
+          }
+
+          setFilterFromBrush(col, event.selection, x);
+
+          const filter = activeFilters[col];
+          const snappedSelection = filter
+            ? filter.map(value => histograms[col].x(value))
+            : histograms[col].x.range();
+
+          isRestoringBrushes = true;
+
+          histograms[col].brushG.call(
+            histograms[col].brush.move,
+            snappedSelection
+          );
+
+          isRestoringBrushes = false;
+
+          update();
+        });
+
+      const brushG = g.append("g")
+        .attr("class", "brush")
+        .call(brush);
+
+      const leftVisualHandle = g.append("g")
+        .attr("class", "visual-handle");
+
+      leftVisualHandle.append("rect")
+        .attr("x", -7)
+        .attr("y", -10)//10)
+        .attr("width", 18)
+        .attr("height", 12)//Math.max(16, height - 50));
+
+      leftVisualHandle.append("text")
+        .attr("x", 2)
+        .attr("y", -3)//height / 2)
+        .text(">");
+
+      const rightVisualHandle = g.append("g")
+        .attr("class", "visual-handle");
+
+      rightVisualHandle.append("rect")
+        .attr("x", -7)
+        .attr("y", -10)
+        .attr("width", 18)
+        .attr("height",12)// Math.max(16, height - 20));
+
+      rightVisualHandle.append("text")
+        .attr("x", 1)
+        .attr("y", -3)//height / 2)
+        .text("<");
+
+      histograms[col] = {
+        x,
+        bars,
+        brushG,
+        brush,
+        leftVisualHandle,
+        rightVisualHandle
+      };
+    }
+
+    function snapToFive(value) {
+      return Math.round(value);
+      return Math.round(value / 5) * 5;
+    }
+
+    function clampToDomain(value, x) {
+      const domain = x.domain();
+      return Math.max(domain[0], Math.min(domain[1], value));
+    }
+
+    function setFilterFromBrush(col, selection, x) {
+      if (!selection) {
+        activeFilters[col] = null;
+        return;
+      }
+
+      const fullRange = x.range();
+
+      const isFullExtent =
+        Math.abs(selection[0] - fullRange[0]) < 0.5 &&
+        Math.abs(selection[1] - fullRange[1]) < 0.5;
+
+      if (isFullExtent) {
+        activeFilters[col] = null;
+        return;
+      }
+
+      let snapped = selection
+        .map(x.invert)
+        .map(value => clampToDomain(snapToFive(value), x));
+
+      snapped.sort((a, b) => a - b);
+
+      activeFilters[col] = snapped;
+    }
+
+    function restoreBrushSelections() {
+      isRestoringBrushes = true;
+
+      filterColumns.forEach(col => {
+        const filter = activeFilters[col];
+        const chart = histograms[col];
+
+        if (!chart) return;
+
+        const selection = filter
+          ? filter.map(chart.x)
+          : chart.x.range();
+
+        chart.brushG.call(chart.brush.move, selection);
+      });
+
+      isRestoringBrushes = false;
+    }
+
+    function update() {
+      const filtered = getFilteredData();
+
+      updateHistogramHighlights();
+      updateFilterLabels();
+      updateCount(filtered);
+      updateCartogram(filtered);
+      updateTable(filtered);
+    }
+
+    function updateHistogramHighlights() {
+      filterColumns.forEach(col => {
+        const chart = histograms[col];
+        const filter = activeFilters[col];
+
+        if (!chart) return;
+
+        const selection = filter
+          ? filter.map(chart.x)
+          : chart.x.range();
+
+        chart.leftVisualHandle
+          .attr("transform", `translate(${selection[0]},0)`);
+
+        chart.rightVisualHandle
+          .attr("transform", `translate(${selection[1]},0)`);
+
+        chart.bars.classed("inactive", d => {
+          if (!filter) return false;
+
+          const midpoint = (d.x0 + d.x1) / 2;
+          return midpoint < filter[0] || midpoint > filter[1];
+        });
+      });
+    }
+
+    function updateFilterLabels() {
+      filterColumns.forEach(col => {
+        const filter = activeFilters[col];
+        const label = d3.select(`#label-${sanitizeId(col)}`);
+
+        if (!filter) {
+          label.text("All values selected");
+          return;
+        }
+
+        label.text(`${filter[0].toFixed(0)}% – ${filter[1].toFixed(0)}%`);
+      });
+    }
+
+    function updateCount(filtered) {
+      d3.select("#count")
+        .text(`${filtered.length.toLocaleString()} of ${data.length.toLocaleString()} rows shown`);
+    }
+
+
+
+    function updateCartogram(filtered) {
+      const countsByState = d3.rollup(
+        filtered,
+        v => v.length,
+        d => getStateFromGeoname(d.geoname)
+      );
+
+      const countsByAbbr = {};
+
+      countsByState.forEach((count, stateName) => {
+        const abbr = stateNameToAbbr[stateName] || stateName;
+        countsByAbbr[abbr] = count;
+      });
+
+      const states = [];
+
+      d3.select("#stateGrid")
+        .text()
+        .split("\n")
+        .forEach(function(line, i) {
+          const re = /\w+/g;
+          let m;
+
+          while ((m = re.exec(line))) {
+            states.push({
+              abbr: m[0],
+              x: m.index / 3,
+              y: i,
+              count: countsByAbbr[m[0]] || 0
+            });
+          }
+        });
+
+      const width = 520;
+      const height = 330;
+      const tileW = 30;
+      const tileH = 36;
+      const gap = 2;
+
+      const gridWidth = d3.max(states, d => d.x) + 1;
+      const gridHeight = d3.max(states, d => d.y) + 1;
+      const maxCount = d3.max(states, d => d.count) || 1;
+
+      const fill = d3.scaleLinear()
+        .domain([0, maxCount])
+        .range(["#d9d9d9", "#000"]);
+
+      const container = d3.select("#stateCartogram");
+      container.selectAll("*").remove();
+
+      const svg = container.append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      const g = svg.append("g")
+        .attr("transform", `translate(${width / 2},${height / 2})`);
+
+      const state = g.selectAll(".cartogram-state")
+        .data(states)
+        .enter()
+        .append("g")
+        .attr("class", "cartogram-state")
+        .attr("transform", d =>
+          `translate(${(d.x - gridWidth / 2) * (tileW + gap)},${(d.y - gridHeight / 2) * (tileH + gap)})`
+        );
+
+      state.append("rect")
+        .attr("x", 0)
+        .attr("y", -tileH / 2)
+        .attr("width", tileW)
+        .attr("height", tileH)
+        .attr("rx", 2)
+        .attr("fill", d => d.count > 0 ? fill(d.count) : "#d9d9d9");
+
+      state.append("text")
+        .attr("class", "abbr")
+        .attr("x", tileW / 2)
+        .attr("y", -4)
+        .text(d => d.abbr);
+
+      state.append("text")
+        .attr("class", "metric")
+        .attr("x", tileW / 2)
+        .attr("y", 10)
+        .text(d => d.count > 0 ? d.count : "");
+    }
+
+    function updateTable(filtered) {
+      let rows = [...filtered];
+
+      rows.sort((a, b) => {
+
+  const stateCompare = d3.ascending(
+    getStateFromGeoname(a.geoname),
+    getStateFromGeoname(b.geoname)
+  );
+
+  if (stateCompare !== 0) return stateCompare;
+
+  const aInfo = getDistrictSortInfo(a.geoname);
+  const bInfo = getDistrictSortInfo(b.geoname);
+
+  const nameCompare = d3.ascending(
+    aInfo.name,
+    bInfo.name
+  );
+
+  if (nameCompare !== 0) return nameCompare;
+
+  return aInfo.number - bInfo.number;
+});
+
+      if (sortColumn) {
+        rows.sort((a, b) => {
+          const av = a[sortColumn];
+          const bv = b[sortColumn];
+
+          if (typeof av === "number" && typeof bv === "number") {
+            return sortAscending ? av - bv : bv - av;
+          }
+
+          return sortAscending
+            ? d3.ascending(String(av), String(bv))
+            : d3.descending(String(av), String(bv));
+        });
+      }
+
+      const tableContainer = d3.select("#table");
+      tableContainer.selectAll("*").remove();
+
+      const table = tableContainer.append("table");
+      const thead = table.append("thead");
+      const tbody = table.append("tbody");
+
+      const headerTop = thead.append("tr")
+  .attr("class", "header-top");
+
+headerTop.selectAll("th")
+  .data(columnGroups)
+  .join("th")
+  .attr("colspan", d => d.columns.length)
+  .text(d => d.label);
+
+const headerBottom = thead.append("tr")
+  .attr("class", "header-bottom");
+
+headerBottom.selectAll("th")
+  .data(displayColumns)
+  .join("th")
+  .text(d => {
+    if (d === "geoname") return "";
+    if (d === "Total") return "";
+    return d.includes("%") ? "%" : "Count";
+  })
+  .on("click", (event, col) => {
+    if (sortColumn === col) {
+      sortAscending = !sortAscending;
+    } else {
+      sortColumn = col;
+      sortAscending = true;
+    }
+
+    update();
+  });
+
+      const rowsByState = d3.group(
+        rows,
+        d => getStateFromGeoname(d.geoname)
+      );
+
+      for (const [state, stateRows] of rowsByState) {
+        tbody.append("tr")
+          .attr("class", "state-row")
+          .append("td")
+          .attr("colspan", displayColumns.length)
+          .text(`${state} (${stateRows.length.toLocaleString()})`);
+
+        const stateTr = tbody.selectAll(`.row-${sanitizeId(state)}`)
+          .data(stateRows)
+          .join("tr")
+          .attr("class", `row-${sanitizeId(state)}`);
+
+        stateTr.selectAll("td")
+          .data(row => displayColumns.map(col => ({
+            col,
+            value: row[col]
+          })))
+          .join("td")
+          .classed("percent-cell", d => d.col.includes("%"))
+          .text(d => formatCell(d.value, d.col));
+      }
+    }
+
+    function getStateFromGeoname(geoname) {
+      if (!geoname) return "Unknown";
+      const parts = String(geoname).split(",");
+      return parts.length > 1 ? parts[parts.length - 1].trim() : "Unknown";
+    }
+function getDistrictSortInfo(geoname) {
+  const districtName = String(geoname)
+    .split(",")[0]
+    .trim();
+
+  // Case 1: 1st Norfolk District
+  let match = districtName.match(
+    /^(\d+)(?:st|nd|rd|th)\s+(.+?)\s+District/i
+  );
+
+  if (match) {
+    return {
+      name: match[2].trim(),
+      number: +match[1]
+    };
+  }
+
+  // Case 2: State House District 10
+  match = districtName.match(
+    /^(.+?)\s+District\s+(\d+)/i
+  );
+
+  if (match) {
+    return {
+      name: match[1].trim(),
+      number: +match[2]
+    };
+  }
+
+  return {
+    name: districtName,
+    number: 0
+  };
+}
+    function formatDistrictName(geoname) {
+      if (!geoname) return "";
+
+      const districtName = String(geoname).split(",")[0].trim();
+
+      const match = districtName.match(
+        /^(\d+(?:st|nd|rd|th))\s+(.+?)\s+District(\s*\(.*?\))?$/i
+      );
+
+      if (!match) return districtName;
+
+      const number = match[1];
+      const name = match[2];
+      const year = match[3] || "";
+
+      return `${name} District ${number}${year}`;
+    }
+
+    function formatCell(value, col) {
+      if (value == null) return "";
+
+      if (col === "geoname") {
+        return formatDistrictName(value);
+      }
+
+      if (col.includes("%")) {
+        return Number(value).toFixed(2) + "%";
+      }
+
+      if (typeof value === "number") {
+        return value.toLocaleString();
+      }
+
+      return value;
+    }
+  </script>
+</body>
+</html>
