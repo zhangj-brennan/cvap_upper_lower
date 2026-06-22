@@ -256,16 +256,18 @@ th span {
       white-space: normal;
       word-break: break-word;
       vertical-align: top;
+            border-left:1px solid black;
+
     }
 
     th:first-child,
     td:first-child {
-      width: 150px;
+      width: 80px;
     }
 
     th:not(:first-child),
     td:not(:first-child) {
-      width: 50px;
+      width: 20px;
     }
 
     tr:hover {
@@ -274,7 +276,9 @@ th span {
 
     td.percent-cell {
       background: #EBEAE9;
+      border:none;
     }
+    
 
     .state-row td {
       background: #000;
@@ -506,7 +510,7 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
     }
 
     function drawHistogram(container, col) {
-      const margin = { top: 0, right: 0, bottom: 16, left: 25 };
+      const margin = { top: 10, right: 0, bottom: 16, left: 25 };
       const width = 300 - margin.left - margin.right;
       const height = 60 - margin.top - margin.bottom;
 
@@ -604,28 +608,28 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
 
       leftVisualHandle.append("rect")
         .attr("x", -7)
-        .attr("y", 10)
-        .attr("width", 12)
-        .attr("height", Math.max(16, height - 20));
+        .attr("y", -10)//10)
+        .attr("width", 18)
+        .attr("height", 12)//Math.max(16, height - 50));
 
       leftVisualHandle.append("text")
-        .attr("x", 0)
-        .attr("y", height / 2)
-        .text("");
+        .attr("x", 2)
+        .attr("y", -3)//height / 2)
+        .text(">");
 
       const rightVisualHandle = g.append("g")
         .attr("class", "visual-handle");
 
       rightVisualHandle.append("rect")
         .attr("x", -7)
-        .attr("y", 10)
-        .attr("width", 12)
-        .attr("height", Math.max(16, height - 20));
+        .attr("y", -10)
+        .attr("width", 18)
+        .attr("height",12)// Math.max(16, height - 20));
 
       rightVisualHandle.append("text")
-        .attr("x", 0)
-        .attr("y", height / 2)
-        .text("");
+        .attr("x", 1)
+        .attr("y", -3)//height / 2)
+        .text("<");
 
       histograms[col] = {
         x,
