@@ -596,6 +596,21 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
           }
 
           setFilterFromBrush(col, event.selection, x);
+
+          const filter = activeFilters[col];
+          const snappedSelection = filter
+            ? filter.map(value => histograms[col].x(value))
+            : histograms[col].x.range();
+
+          isRestoringBrushes = true;
+
+          histograms[col].brushG.call(
+            histograms[col].brush.move,
+            snappedSelection
+          );
+
+          isRestoringBrushes = false;
+
           update();
         });
 
@@ -641,6 +656,16 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
       };
     }
 
+    function snapToFive(value) {
+      return Math.round(value);
+      return Math.round(value / 5) * 5;
+    }
+
+    function clampToDomain(value, x) {
+      const domain = x.domain();
+      return Math.max(domain[0], Math.min(domain[1], value));
+    }
+
     function setFilterFromBrush(col, selection, x) {
       if (!selection) {
         activeFilters[col] = null;
@@ -655,9 +680,16 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
 
       if (isFullExtent) {
         activeFilters[col] = null;
-      } else {
-        activeFilters[col] = selection.map(x.invert);
+        return;
       }
+
+      let snapped = selection
+        .map(x.invert)
+        .map(value => clampToDomain(snapToFive(value), x));
+
+      snapped.sort((a, b) => a - b);
+
+      activeFilters[col] = snapped;
     }
 
     function restoreBrushSelections() {
@@ -724,7 +756,7 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
           return;
         }
 
-        label.text(`${filter[0].toFixed(1)}% – ${filter[1].toFixed(1)}%`);
+        label.text(`${filter[0].toFixed(0)}% – ${filter[1].toFixed(0)}%`);
       });
     }
 
