@@ -323,6 +323,18 @@ th span {
       text-anchor: middle;
     }
 
+    .cartogram-legend text {
+      fill: #000;
+      font-family: "Benton", Arial, sans-serif;
+      font-size: 10px;
+    }
+
+    .cartogram-legend-title {
+      font-family: "BentonStrong", Arial, sans-serif;
+      font-size: 11px;
+      fill: #000;
+    }
+
     .bold {
       font-family: "BentonMedium";
     }
@@ -422,6 +434,19 @@ HI AK    TX             FL
       "Hispanic or Latino %"
     ];
 
+    const filterUrlKeys = {
+      "American Indian or Alaska Native Alone %": "aian",
+      "Asian Alone %": "asian",
+      "Black or African American Alone %": "black",
+      "Native Hawaiian or Other Pacific Islander Alone %": "nhpi",
+      "White Alone %": "white",
+      "Hispanic or Latino %": "hispanic"
+    };
+
+    const filterUrlColumns = Object.fromEntries(
+      Object.entries(filterUrlKeys).map(([column, key]) => [key, column])
+    );
+
     const columnGroups = [
   { label: "District", columns: ["geoname"] },
   { label: "Total", columns: ["Total"] },
@@ -475,6 +500,14 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
       activeFilters[col] = null;
     });
 
+    readUrlState();
+
+    d3.selectAll(".tab-btn")
+      .classed("active", false);
+
+    d3.select(`.tab-btn[data-key="${currentDatasetKey}"]`)
+      .classed("active", true);
+
     loadDataset(currentDatasetKey);
 
     d3.select("#congressNote")
@@ -492,6 +525,7 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
       d3.select("#congressNote")
         .style("display", key === "congress" ? "block" : "none");
 
+      updateUrlState();
       loadDataset(currentDatasetKey);
     });
 
@@ -529,6 +563,53 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
         drawFilters();
         restoreBrushSelections();
         update();
+      });
+    }
+
+    function updateUrlState() {
+      const params = new URLSearchParams();
+
+      params.set("dataset", currentDatasetKey);
+
+      filterColumns.forEach(col => {
+        const filter = activeFilters[col];
+        if (!filter) return;
+
+        const key = filterUrlKeys[col];
+        params.set(key, `${filter[0]},${filter[1]}`);
+      });
+
+      const query = params.toString();
+      const newUrl = `${window.location.pathname}${query ? "?" + query : ""}`;
+
+      window.history.replaceState(null, "", newUrl);
+    }
+
+    function readUrlState() {
+      const params = new URLSearchParams(window.location.search);
+
+      const dataset = params.get("dataset");
+      if (dataset && datasets[dataset]) {
+        currentDatasetKey = dataset;
+      }
+
+      filterColumns.forEach(col => {
+        activeFilters[col] = null;
+      });
+
+      params.forEach((value, key) => {
+        const col = filterUrlColumns[key];
+        if (!col) return;
+
+        const parts = value
+          .split(",")
+          .map(Number)
+          .filter(v => !Number.isNaN(v));
+
+        if (parts.length !== 2) return;
+
+        parts.sort((a, b) => a - b);
+        activeFilters[col] = parts;
       });
     }
 
@@ -782,6 +863,7 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
       updateCount(filtered);
       updateCartogram(filtered);
       updateTable(filtered);
+      updateUrlState();
     }
 
     function updateHistogramHighlights() {
@@ -875,8 +957,9 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
       const maxCount = d3.max(states, d => d.count) || 1;
 
       const fill = d3.scaleLinear()
-        .domain([0, maxCount])
-        .range(["#d9d9d9", "#000"]);
+        .domain([1, maxCount])
+        .range(["#9FCDE0", "#00415B"])
+        .clamp(true);
 
       const container = d3.select("#stateCartogram");
       container.selectAll("*").remove();
@@ -916,7 +999,71 @@ const displayColumns = columnGroups.flatMap(group => group.columns);
         .attr("x", tileW / 2)
         .attr("y", 10)
         .text(d => d.count > 0 ? d.count : "");
+
+      drawCartogramLegend(svg, fill, maxCount);
     }
+
+    function drawCartogramLegend(svg, fill, maxCount) {
+      const legendX = 18;
+      const legendY = 18;
+      const swatchW = 22;
+      const swatchH = 12;
+      const gap = 4;
+
+      const numericBreaks = [1];
+
+      if (maxCount > 1) {
+        numericBreaks.push(Math.round(maxCount / 2));
+        numericBreaks.push(maxCount);
+      }
+
+      const uniqueBreaks = Array.from(
+        new Set(
+          numericBreaks
+            .map(d => Math.max(1, Math.round(d)))
+            .filter(d => d <= maxCount)
+        )
+      ).sort((a, b) => a - b);
+
+      const legendValues = [
+        { label: "0", value: 0, fill: "#d9d9d9" },
+        ...uniqueBreaks.map(value => ({
+          label: value.toLocaleString(),
+          value,
+          fill: fill(value)
+        }))
+      ];
+
+      const legend = svg.append("g")
+        .attr("class", "cartogram-legend")
+        .attr("transform", `translate(${legendX},${legendY})`);
+
+      legend.append("text")
+        .attr("class", "cartogram-legend-title")
+        .attr("x", 0)
+        .attr("y", -5)
+        .text("Districts shown");
+
+      const item = legend.selectAll(".cartogram-legend-item")
+        .data(legendValues)
+        .enter()
+        .append("g")
+        .attr("class", "cartogram-legend-item")
+        .attr("transform", (d, i) => `translate(${i * 54},0)`);
+
+      item.append("rect")
+        .attr("width", swatchW)
+        .attr("height", swatchH)
+        .attr("fill", d => d.fill)
+        .attr("stroke", "#000")
+        .attr("stroke-width", 0.5);
+
+      item.append("text")
+        .attr("x", swatchW + gap)
+        .attr("y", swatchH - 2)
+        .text(d => d.label);
+    }
+
 
     function updateTable(filtered) {
       let rows = [...filtered];
