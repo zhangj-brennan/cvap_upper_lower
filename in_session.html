@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>State Session Cartogram</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+@font-face {
+  font-family: "Benton";
+  src: url("Benton Sans/Benton Sans Book.otf");
+}
+
+@font-face {
+  font-family: "BentonStrong";
+  src: url("Benton Sans/Benton Sans Bold.otf");
+}
+
+@font-face {
+  font-family: "BentonMedium";
+  src: url("Benton Sans/Benton Sans Medium.otf");
+}
+
+body {
+  font-family: "BentonStrong", sans-serif;
+  margin: 40px;
+  color: #000;
+}
+
+#controls {
+  margin-bottom: 24px;
+}
+
+button {
+  font-family: inherit;
+  margin: 4px;
+  padding: 8px 12px;
+  border: 1px solid #000;
+  background: white;
+  cursor: pointer;
+}
+
+button.active {
+  outline: 3px solid #000;
+  outline-offset: 0px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: max-content minmax(300px, 520px);
+  gap: 40px;
+  align-items: start;
+}
+
+.cartogram {
+  display: grid;
+  grid-template-columns: repeat(12, 48px);
+  gap: 6px;
+  margin-bottom: 32px;
+}
+
+.state {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.state:hover {
+  outline: 3px solid #000;
+}
+
+.state.selected {
+  outline: 4px solid #000;
+  outline-offset: 0px;
+  position: relative;
+  z-index: 10;
+}
+
+#details {
+  max-width: 520px;
+  border-left: 1px solid #ccc;
+  padding-left: 24px;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+@media (max-width: 900px) {
+  body {
+    margin: 24px;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  #details {
+    max-width: 720px;
+    border-left: none;
+    border-top: 1px solid #000;
+    padding-left: 0;
+    padding-top: 20px;
+  }
+}
+.detail-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #000;
+}
+
+.detail-section:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.detail-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+}
+
+.detail-row {
+   font-family:"Benton";
+ display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  margin: 6px 0;
+}
+
+.detail-label {
+  color: #000;
+}
+
+.detail-value {
+  color: #000;
+}
+</style>
+</head>
+
+<body>
+
+<h1>State Session Cartogram</h1>
+
+<div id="controls"></div>
+
+<div class="layout">
+  <div id="cartogram" class="cartogram"></div>
+  <div id="details">Click a state to see details.</div>
+</div>
+
+<script>
+const stateAbbrev = {
+  "Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA",
+  "Colorado":"CO","Connecticut":"CT","Delaware":"DE","Florida":"FL","Georgia":"GA",
+  "Hawaii":"HI","Idaho":"ID","Illinois":"IL","Indiana":"IN","Iowa":"IA",
+  "Kansas":"KS","Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD",
+  "Massachusetts":"MA","Michigan":"MI","Minnesota":"MN","Mississippi":"MS",
+  "Missouri":"MO","Montana":"MT","Nebraska":"NE","Nevada":"NV","New Hampshire":"NH",
+  "New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC",
+  "North Dakota":"ND","Ohio":"OH","Oklahoma":"OK","Oregon":"OR","Pennsylvania":"PA",
+  "Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD","Tennessee":"TN",
+  "Texas":"TX","Utah":"UT","Vermont":"VT","Virginia":"VA","Washington":"WA",
+  "West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY","District of Columbia":"DC"
+};
+
+const gridOrder = [
+  null,null,null,null,null,null,null,null,null,null,null,"ME",
+  null,null,null,null,null,null,null,null,null,"VT","NH",null,
+  null,"WA","ID","MT","ND","MN","IL","WI","MI","NY","MA",null,
+  null,"OR","NV","WY","SD","IA","IN","OH","PA","NJ","CT","RI",
+  null,"CA","UT","CO","NE","MO","KY","WV","VA","MD","DE",null,
+  null,null,"AZ","NM","KS","AR","TN","NC","SC",null,null,null,
+  null,null,null,null,"OK","LA","MS","AL","GA",null,null,null,
+  null,"HI","AK",null,"TX",null,null,null,"FL",null,null,null
+];
+
+function parseDate(value, yearHint) {
+  if (!value) return null;
+  const clean = String(value).trim();
+  if (!clean) return null;
+
+  let d = new Date(clean);
+  if (!isNaN(d)) return d;
+
+  d = new Date(`${clean}, ${yearHint}`);
+  if (!isNaN(d)) return d;
+
+  return null;
+}
+
+function inclusiveDays(start, end, yearHint) {
+  const s = parseDate(start, yearHint);
+  const e = parseDate(end, yearHint);
+  if (!s || !e) return "";
+
+  const ms = e - s;
+  return Math.round(ms / (1000 * 60 * 60 * 24)) + 1;
+}
+
+function cleanMethod(value) {
+  const raw = String(value || "").trim();
+  return raw || "Unknown";
+}
+
+/*
+  This dictionary is now the ONLY place where labels are grouped.
+
+  The left side should be the exact label from the CSV.
+  The right side is the category you want it grouped under.
+
+  If a CSV label is not listed here, it stays as its own category.
+*/
+const methodGroupMap = {
+  // Example:
+  // "Set by constitution": "Constitution",
+  // "Constitutional provision": "Constitution",
+  // "Set by statute": "Statute"
+};
+
+function groupMethod(value) {
+  const label = cleanMethod(value);
+  return methodGroupMap[label] || label;
+}
+
+const colorPalette = [
+  "#3995B2",
+  "#9FCDE0",
+  "#FFCF01",
+    "#ED1C24",
+"#F69679",
+    "#DBDADA",
+    "#DBDADA",
+];
+
+let activeGroup = "All";
+let selectedState = null;
+
+d3.csv("2027 Legislative Session Dates.csv").then(raw => {
+  const data = raw.map(d => {
+    const abbr = stateAbbrev[d.State?.trim()] || d.State?.trim();
+    const methodLabel = cleanMethod(d["Method of Setting"]);
+    const methodGroup = groupMethod(d["Method of Setting"]);
+
+    return {
+      ...d,
+      abbr,
+      methodLabel,
+      methodGroup,
+      days2027: inclusiveDays(d["Convenes 2027"], d["Adjourns 2027"], 2027),
+      days2025: inclusiveDays(d["Convened 2025"], d["Adjourned 2025"], 2025),
+      days2023: inclusiveDays(d["Convened 2023"], d["Adjourned 2023"], 2023)
+    };
+  });
+
+  const methodCounts = d3.rollups(
+    data,
+    v => v.length,
+    d => d.methodLabel
+  ).sort((a, b) => d3.descending(a[1], b[1]));
+
+  console.table(
+    methodCounts.map(([label, count]) => ({
+      "Actual Method of Setting": label,
+      "Count": count
+    }))
+  );
+
+  const byAbbr = new Map(data.map(d => [d.abbr, d]));
+  const groupCounts = d3.rollups(
+  data,
+  v => v.length,
+  d => d.methodGroup
+);
+
+const specialGroups = [
+  "Not applicable",
+  "Not Applicable",
+  "Unknown"
+];
+
+const sortedGroups = groupCounts
+  .filter(([group]) => !specialGroups.includes(group))
+  .sort((a, b) => d3.descending(a[1], b[1]))
+  .map(([group]) => group);
+
+const endingGroups = groupCounts
+  .filter(([group]) => specialGroups.includes(group))
+  .sort((a, b) => a[0].localeCompare(b[0]))
+  .map(([group]) => group);
+
+const groups = [
+  "All",
+  ...sortedGroups,
+  ...endingGroups
+];
+
+  const color = d3.scaleOrdinal()
+    .domain(groups.filter(d => d !== "All"))
+    .range(colorPalette);
+
+  d3.select("#controls")
+    .selectAll("button")
+    .data(groups)
+    .join("button")
+    .attr("class", d => d === "All" ? "active" : null)
+    .style("background", d => d === "All" ? "#fff" : color(d))
+    .style("color", d => d === "All" ? "#000" : "#000")
+    .text(d => {
+      if (d === "All") return `All (${data.length})`;
+      const count = groupCounts.find(([group]) => group === d)?.[1] || 0;
+return `${d} (${count})`;
+    })
+    .on("click", function(event, group) {
+      activeGroup = group;
+
+      d3.selectAll("#controls button")
+        .classed("active", d => d === group)
+        .style("background", d => {
+         // if (d === "All") return d === group ? "#000" : "white";
+          return color(d);
+        })
+        .style("color", d => {
+          if (d === "All") return d === group ? "white" : "#000";
+          return "#000";
+        });
+
+      render();
+    });
+
+  function render() {
+    d3.select("#cartogram")
+      .selectAll(".state")
+      .data(gridOrder)
+      .join("div")
+      .attr("class", d => d === selectedState ? "state selected" : "state")
+      .style("visibility", d => d ? "visible" : "hidden")
+      .style("background", d => {
+        const row = byAbbr.get(d);
+        if (!row) return "#f4f4f4";
+        if (activeGroup !== "All" && row.methodGroup !== activeGroup) return "#eee";
+        return color(row.methodGroup);
+      })
+      .style("opacity", d => {
+        const row = byAbbr.get(d);
+        if (!row) return 0.25;
+        return activeGroup === "All" || row.methodGroup === activeGroup ? 1 : 0.25;
+      })
+      .text(d => d || "")
+      .on("click", (event, abbr) => {
+        const row = byAbbr.get(abbr);
+        if (!row) return;
+
+        selectedState = abbr;
+
+        d3.selectAll(".state")
+          .classed("selected", d => d === selectedState);
+
+        showDetails(row);
+      });
+  }
+
+  function showDetails(d) {
+  d3.select("#details").html(`
+    <h2>${d.State}</h2>
+
+    <div class="detail-section">
+      <div class="detail-row">
+        <div class="detail-label">Method</div>
+        <div class="detail-value">${d.methodLabel}</div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-label">Length Limit</div>
+        <div class="detail-value">${d["Session Length Limit"] || "—"}</div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>2027 Session</h3>
+
+      <div class="detail-row">
+        <div class="detail-label">Dates</div>
+        <div class="detail-value">
+          ${d["Convenes 2027"] || "—"} – ${d["Adjourns 2027"] || "—"}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="detail-section">
+      <h3>2025 Session</h3>
+
+      <div class="detail-row">
+        <div class="detail-label">Dates</div>
+        <div class="detail-value">
+          ${d["Convened 2025"] || "—"} – ${d["Adjourned 2025"] || "—"}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="detail-section">
+      <h3>2023 Session</h3>
+
+      <div class="detail-row">
+        <div class="detail-label">Dates</div>
+        <div class="detail-value">
+          ${d["Convened 2023"] || "—"} – ${d["Adjourned 2023"] || "—"}
+        </div>
+      </div>
+
+   
+  `);
+}
+
+  render();
+});
+</script>
+
+</body>
+</html>
