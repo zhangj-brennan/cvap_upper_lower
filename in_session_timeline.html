@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>State Session Timeline</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+@font-face {
+  font-family: "Benton";
+  src: url("Benton Sans/Benton Sans Book.otf");
+}
+
+@font-face {
+  font-family: "BentonStrong";
+  src: url("Benton Sans/Benton Sans Bold.otf");
+}
+
+body {
+  font-family: "Benton", sans-serif;
+  margin: 10px;
+  color: #000;
+}
+
+h1 {
+  margin-bottom: 20px;
+}
+
+.controls {
+  margin-bottom: 24px;
+}
+
+.control-group {
+  margin-bottom: 12px;
+}
+
+.control-label {
+  display: inline-block;
+  width: 190px;
+  font-size: 14px;
+}
+
+button {
+  font-family: inherit;
+  margin: 4px;
+  padding: 8px 12px;
+  border: 1px solid #000;
+  background: white;
+  cursor: pointer;
+}
+
+button.active {
+  background: #000;
+  color: white;
+}
+
+.chart-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.state-label {
+  font-size: 13px;
+}
+
+.axis text {
+  font-family: "Benton", sans-serif;
+  font-size: 10px;
+}
+
+.axis path,
+.axis line {
+  stroke: #000;
+}
+
+.session-line {
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.session-2023 {
+  stroke: #F69679;
+}
+
+.session-2025 {
+  stroke: #3995B2;
+}
+
+.session-2027 {
+  stroke: #FFCF01;
+}
+
+
+
+.year-label {
+  font-size: 10px;
+  dominant-baseline: middle;
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: white;
+  border: 1px solid #000;
+  padding: 8px 10px;
+  font-size: 13px;
+  opacity: 0;
+  max-width: 280px;
+}
+
+.legend {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-line {
+  width: 28px;
+  height: 5px;
+  border-radius: 5px;
+}
+
+@media (max-width: 900px) {
+  body {
+    margin: 24px;
+  }
+
+  .control-label {
+    display: block;
+    width: auto;
+    margin: 12px 0 4px;
+  }
+}
+.state-baseline {
+  stroke: #000000;
+  stroke-width:1;
+  stroke-dasharray: 1 3;
+}
+</style>
+</head>
+
+<body>
+
+<h1>State Session Timeline</h1>
+
+<div class="controls">
+    <span class="control-label">SORT: </span>
+  <div class="control-group">
+    <button data-sort="alpha" class="active">Alphabetical</button>
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Earliest to latest start</span>
+    <button data-sort="start2023">2023</button>
+    <button data-sort="start2025" >2025</button>
+    <button data-sort="start2027">2027</button>
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Longest to shortest</span>
+    <button data-sort="length2023">2023</button>
+    <button data-sort="length2025">2025</button>
+    <button data-sort="length2027">2027</button>
+  </div>
+</div>
+
+<div class="chart-wrap">
+  <svg id="chart"></svg>
+</div>
+
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+const stateAbbrev = {
+  "Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA",
+  "Colorado":"CO","Connecticut":"CT","Delaware":"DE","Florida":"FL","Georgia":"GA",
+  "Hawaii":"HI","Idaho":"ID","Illinois":"IL","Indiana":"IN","Iowa":"IA",
+  "Kansas":"KS","Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD",
+  "Massachusetts":"MA","Michigan":"MI","Minnesota":"MN","Mississippi":"MS",
+  "Missouri":"MO","Montana":"MT","Nebraska":"NE","Nevada":"NV","New Hampshire":"NH",
+  "New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC",
+  "North Dakota":"ND","Ohio":"OH","Oklahoma":"OK","Oregon":"OR","Pennsylvania":"PA",
+  "Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD","Tennessee":"TN",
+  "Texas":"TX","Utah":"UT","Vermont":"VT","Virginia":"VA","Washington":"WA",
+  "West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY","District of Columbia":"DC"
+};
+
+function parseDate(value, yearHint) {
+  if (!value) return null;
+  const clean = String(value).trim();
+  if (!clean) return null;
+
+  let d = new Date(clean);
+  if (!isNaN(d)) return d;
+
+  d = new Date(`${clean}, ${yearHint}`);
+  if (!isNaN(d)) return d;
+
+  return null;
+}
+
+function inclusiveDays(start, end, yearHint) {
+  const s = parseDate(start, yearHint);
+  const e = parseDate(end, yearHint);
+  if (!s || !e) return null;
+
+  return Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+function dateLabel(d) {
+  if (!d) return "—";
+  return d3.timeFormat("%b %-d, %Y")(d);
+}
+
+let currentSort = "alpha";
+
+d3.csv("2027 Legislative Session Dates.csv").then(raw => {
+  const data = raw.map(d => {
+    const state = d.State?.trim();
+    const abbr = stateAbbrev[state] || state;
+
+    const start2023 = parseDate(d["Convened 2023"], 2023);
+    const end2023 = parseDate(d["Adjourned 2023"], 2023);
+    const start2025 = parseDate(d["Convened 2025"], 2025);
+    const end2025 = parseDate(d["Adjourned 2025"], 2025);
+    const start2027 = parseDate(d["Convenes 2027"], 2027);
+    const end2027 = parseDate(d["Adjourns 2027"], 2027);
+
+    return {
+      ...d,
+      state,
+      abbr,
+      start2023,
+      end2023,
+      days2023: inclusiveDays(d["Convened 2023"], d["Adjourned 2023"], 2023),
+      start2025,
+      end2025,
+      days2025: inclusiveDays(d["Convened 2025"], d["Adjourned 2025"], 2025),
+      start2027,
+      end2027,
+      days2027: inclusiveDays(d["Convenes 2027"], d["Adjourns 2027"], 2027)
+    };
+  });
+
+  const allDates = data.flatMap(d => [
+    d.start2023, d.end2023,
+    d.start2025, d.end2025,
+    d.start2027, d.end2027
+  ]).filter(Boolean);
+
+  const minDate = d3.min(allDates);
+  const maxDate = d3.max(allDates);
+
+  function sortData() {
+    const sorted = [...data];
+
+    if (currentSort === "alpha") {
+      sorted.sort((a, b) => d3.ascending(a.state, b.state));
+    }
+
+    if (currentSort === "start2023") {
+      sorted.sort((a, b) => d3.ascending(a.start2023 || new Date(9999, 0, 1), b.start2023 || new Date(9999, 0, 1)));
+    }
+
+    if (currentSort === "start2025") {
+      sorted.sort((a, b) => d3.ascending(a.start2025 || new Date(9999, 0, 1), b.start2025 || new Date(9999, 0, 1)));
+    }
+
+    if (currentSort === "start2027") {
+      sorted.sort((a, b) => d3.ascending(a.start2027 || new Date(9999, 0, 1), b.start2027 || new Date(9999, 0, 1)));
+    }
+
+    if (currentSort === "length2023") {
+      sorted.sort((a, b) => d3.descending(a.days2023 || -1, b.days2023 || -1));
+    }
+
+    if (currentSort === "length2025") {
+      sorted.sort((a, b) => d3.descending(a.days2025 || -1, b.days2025 || -1));
+    }
+
+    if (currentSort === "length2027") {
+      sorted.sort((a, b) => d3.descending(a.days2027 || -1, b.days2027 || -1));
+    }
+
+    return sorted;
+  }
+
+  d3.selectAll("button[data-sort]").on("click", function() {
+    currentSort = this.dataset.sort;
+
+    d3.selectAll("button[data-sort]")
+      .classed("active", false);
+
+    d3.select(this).classed("active", true);
+
+    render();
+  });
+
+  function render() {
+    const sorted = sortData();
+
+    const margin = {
+      top: 40,
+      right: 10,
+      bottom: 40,
+      left: 150
+    };
+
+    const rowHeight = 20;
+    const width = Math.max(1000, window.innerWidth - 120);
+    const height = margin.top + margin.bottom + sorted.length * rowHeight;
+
+    const svg = d3.select("#chart")
+      .attr("width", width)
+      .attr("height", height);
+
+    svg.selectAll("*").remove();
+
+    const x = d3.scaleTime()
+      .domain([minDate, maxDate])
+      .range([margin.left, width - margin.right]);
+
+    const axis = d3.axisTop(x)
+      .ticks(d3.timeMonth.every(6))
+      .tickFormat(d3.timeFormat("%b %Y"));
+
+    svg.append("g")
+      .attr("class", "axis")
+      .attr("transform", `translate(0, ${margin.top - 14})`)
+      .call(axis);
+
+    const rows = svg.selectAll(".state-row")
+      .data(sorted)
+      .join("g")
+      .attr("class", "state-row")
+      .attr("transform", (d, i) => `translate(0, ${margin.top + i * rowHeight + 18})`);
+
+    rows.append("text")
+      .attr("class", "state-label")
+      .attr("x", margin.left - 16)
+      .attr("y", 0)
+      .attr("text-anchor", "end")
+      .attr("dominant-baseline", "middle")
+      .text(d => `${d.state} (${d.abbr})`);
+
+      rows.append("line")
+  .attr("class", "state-baseline")
+  .attr("x1", margin.left)
+  .attr("x2", width - margin.right)
+  .attr("y1", 0)
+  .attr("y2", 0);
+
+    const sessions = [
+      {
+        year: "2023",
+        start: d => d.start2023,
+        end: d => d.end2023,
+        days: d => d.days2023,
+        className: "session-2023",
+        y: 0
+      },
+      {
+        year: "2025",
+        start: d => d.start2025,
+        end: d => d.end2025,
+        days: d => d.days2025,
+        className: "session-2025",
+        y: 0
+      },
+      {
+        year: "2027",
+        start: d => d.start2027,
+        end: d => d.end2027,
+        days: d => d.days2027,
+        className: "session-2027",
+        y: 0
+      }
+    ];
+
+   sessions.forEach(session => {
+
+  rows
+    .filter(d => session.start(d) && session.end(d))
+    .append("line")
+    .attr("class", `session-line ${session.className}`)
+    .attr("x1", d => x(session.start(d)))
+    .attr("x2", d => x(session.end(d)))
+    .attr("y1", session.y)
+    .attr("y2", session.y)
+    .on("mousemove", function(event, d) {
+
+      d3.select("#tooltip")
+        .style("opacity", 1)
+        .style("left", `${event.pageX + 12}px`)
+        .style("top", `${event.pageY + 12}px`)
+        .html(`
+          <strong>${d.state}</strong><br>
+          ${session.year} session<br>
+          ${dateLabel(session.start(d))} – ${dateLabel(session.end(d))}<br>
+          ${session.days(d)} days
+        `);
+    })
+    .on("mouseleave", function() {
+      d3.select("#tooltip").style("opacity", 0);
+    });
+
+});
+  }
+
+  render();
+
+  window.addEventListener("resize", render);
+});
+</script>
+
+</body>
+</html>
