@@ -90,11 +90,10 @@ button.active {
   stroke: #FFCF01;
 }
 
-
-
-.year-label {
-  font-size: 10px;
-  dominant-baseline: middle;
+.year-heading {
+  font-family: "BentonStrong", sans-serif;
+  font-size: 14px;
+  text-anchor: middle;
 }
 
 .tooltip {
@@ -108,23 +107,10 @@ button.active {
   max-width: 280px;
 }
 
-.legend {
-  display: flex;
-  gap: 18px;
-  margin-bottom: 20px;
-  font-size: 14px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.legend-line {
-  width: 28px;
-  height: 5px;
-  border-radius: 5px;
+.state-baseline {
+  stroke: #000000;
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
 }
 
 @media (max-width: 900px) {
@@ -138,11 +124,6 @@ button.active {
     margin: 12px 0 4px;
   }
 }
-.state-baseline {
-  stroke: #000000;
-  stroke-width:1;
-  stroke-dasharray: 1 3;
-}
 </style>
 </head>
 
@@ -151,7 +132,7 @@ button.active {
 <h1>State Session Timeline</h1>
 
 <div class="controls">
-    <span class="control-label">SORT: </span>
+  <span class="control-label">SORT: </span>
   <div class="control-group">
     <button data-sort="alpha" class="active">Alphabetical</button>
   </div>
@@ -159,7 +140,7 @@ button.active {
   <div class="control-group">
     <span class="control-label">Earliest to latest start</span>
     <button data-sort="start2023">2023</button>
-    <button data-sort="start2025" >2025</button>
+    <button data-sort="start2025">2025</button>
     <button data-sort="start2027">2027</button>
   </div>
 
@@ -249,15 +230,6 @@ d3.csv("2027 Legislative Session Dates.csv").then(raw => {
     };
   });
 
-  const allDates = data.flatMap(d => [
-    d.start2023, d.end2023,
-    d.start2025, d.end2025,
-    d.start2027, d.end2027
-  ]).filter(Boolean);
-
-  const minDate = d3.min(allDates);
-  const maxDate = d3.max(allDates);
-
   function sortData() {
     const sorted = [...data];
 
@@ -307,10 +279,10 @@ d3.csv("2027 Legislative Session Dates.csv").then(raw => {
     const sorted = sortData();
 
     const margin = {
-      top: 40,
+      top: 54,
       right: 10,
       bottom: 40,
-      left: 150
+      left: 180
     };
 
     const rowHeight = 20;
@@ -323,18 +295,50 @@ d3.csv("2027 Legislative Session Dates.csv").then(raw => {
 
     svg.selectAll("*").remove();
 
-    const x = d3.scaleTime()
-      .domain([minDate, maxDate])
-      .range([margin.left, width - margin.right]);
+    const gap = 60;
+    const chartWidth = width - margin.left - margin.right;
+    const sectionWidth = (chartWidth - gap * 2) / 3;
 
-    const axis = d3.axisTop(x)
-      .ticks(d3.timeMonth.every(6))
-      .tickFormat(d3.timeFormat("%b %Y"));
+    const x2023 = d3.scaleTime()
+      .domain([new Date(2023, 0, 1), new Date(2023, 11, 31)])
+      .range([margin.left, margin.left + sectionWidth]);
 
-    svg.append("g")
-      .attr("class", "axis")
-      .attr("transform", `translate(0, ${margin.top - 14})`)
-      .call(axis);
+    const x2025 = d3.scaleTime()
+      .domain([new Date(2025, 0, 1), new Date(2025, 11, 31)])
+      .range([
+        margin.left + sectionWidth + gap,
+        margin.left + sectionWidth * 2 + gap
+      ]);
+
+    const x2027 = d3.scaleTime()
+      .domain([new Date(2027, 0, 1), new Date(2027, 11, 31)])
+      .range([
+        margin.left + sectionWidth * 2 + gap * 2,
+        margin.left + sectionWidth * 3 + gap * 2
+      ]);
+
+    const axes = [
+      { year: "2023", scale: x2023 },
+      { year: "2025", scale: x2025 },
+      { year: "2027", scale: x2027 }
+    ];
+
+    axes.forEach(a => {
+      svg.append("text")
+        .attr("class", "year-heading")
+        .attr("x", (a.scale.range()[0] + a.scale.range()[1]) / 2)
+        .attr("y", 18)
+        .text(a.year);
+
+      svg.append("g")
+        .attr("class", "axis")
+        .attr("transform", `translate(0, ${margin.top - 14})`)
+        .call(
+          d3.axisTop(a.scale)
+            .ticks(d3.timeMonth.every(2))
+            .tickFormat(d3.timeFormat("%b"))
+        );
+    });
 
     const rows = svg.selectAll(".state-row")
       .data(sorted)
@@ -344,22 +348,25 @@ d3.csv("2027 Legislative Session Dates.csv").then(raw => {
 
     rows.append("text")
       .attr("class", "state-label")
-      .attr("x", margin.left - 16)
+      .attr("x", margin.left - 30)
       .attr("y", 0)
       .attr("text-anchor", "end")
       .attr("dominant-baseline", "middle")
-      .text(d => `${d.state} (${d.abbr})`);
+      .text(d => `${d.state}`);
 
-      rows.append("line")
-  .attr("class", "state-baseline")
-  .attr("x1", margin.left)
-  .attr("x2", width - margin.right)
-  .attr("y1", 0)
-  .attr("y2", 0);
+    axes.forEach(a => {
+  rows.append("line")
+    .attr("class", "state-baseline")
+    .attr("x1", a.scale.range()[0])
+    .attr("x2", a.scale.range()[1])
+    .attr("y1", 0)
+    .attr("y2", 0);
+});
 
     const sessions = [
       {
         year: "2023",
+        scale: x2023,
         start: d => d.start2023,
         end: d => d.end2023,
         days: d => d.days2023,
@@ -368,6 +375,7 @@ d3.csv("2027 Legislative Session Dates.csv").then(raw => {
       },
       {
         year: "2025",
+        scale: x2025,
         start: d => d.start2025,
         end: d => d.end2025,
         days: d => d.days2025,
@@ -376,6 +384,7 @@ d3.csv("2027 Legislative Session Dates.csv").then(raw => {
       },
       {
         year: "2027",
+        scale: x2027,
         start: d => d.start2027,
         end: d => d.end2027,
         days: d => d.days2027,
@@ -384,34 +393,31 @@ d3.csv("2027 Legislative Session Dates.csv").then(raw => {
       }
     ];
 
-   sessions.forEach(session => {
-
-  rows
-    .filter(d => session.start(d) && session.end(d))
-    .append("line")
-    .attr("class", `session-line ${session.className}`)
-    .attr("x1", d => x(session.start(d)))
-    .attr("x2", d => x(session.end(d)))
-    .attr("y1", session.y)
-    .attr("y2", session.y)
-    .on("mousemove", function(event, d) {
-
-      d3.select("#tooltip")
-        .style("opacity", 1)
-        .style("left", `${event.pageX + 12}px`)
-        .style("top", `${event.pageY + 12}px`)
-        .html(`
-          <strong>${d.state}</strong><br>
-          ${session.year} session<br>
-          ${dateLabel(session.start(d))} – ${dateLabel(session.end(d))}<br>
-          ${session.days(d)} days
-        `);
-    })
-    .on("mouseleave", function() {
-      d3.select("#tooltip").style("opacity", 0);
+    sessions.forEach(session => {
+      rows
+        .filter(d => session.start(d) && session.end(d))
+        .append("line")
+        .attr("class", `session-line ${session.className}`)
+        .attr("x1", d => session.scale(session.start(d)))
+        .attr("x2", d => session.scale(session.end(d)))
+        .attr("y1", session.y)
+        .attr("y2", session.y)
+        .on("mousemove", function(event, d) {
+          d3.select("#tooltip")
+            .style("opacity", 1)
+            .style("left", `${event.pageX + 12}px`)
+            .style("top", `${event.pageY + 12}px`)
+            .html(`
+              <strong>${d.state}</strong><br>
+              ${session.year} session<br>
+              ${dateLabel(session.start(d))} – ${dateLabel(session.end(d))}<br>
+              ${session.days(d)} days
+            `);
+        })
+        .on("mouseleave", function() {
+          d3.select("#tooltip").style("opacity", 0);
+        });
     });
-
-});
   }
 
   render();
